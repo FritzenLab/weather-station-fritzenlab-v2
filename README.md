@@ -1,6 +1,6 @@
 # 🌤 FritzenLab Weather Station
 
-**Repository:** [https://github.com/FritzenLab/weather-station-fritzenlab](https://github.com/FritzenLab/weather-station-fritzenlab)
+**Repository:** [https://github.com/FritzenLab/weather-station-fritzenlab](https://github.com/FritzenLab/weather-station-fritzenlab-v2)
 
 This project is an **ESP32‑based IoT weather station** that measures temperature, humidity, light intensity, and air quality (ECO₂, TVOC, AQI).  
 It publishes data securely to **Adafruit IO via MQTT**, sends notifications through **Telegram** and **NTFY**, and supports **ElegantOTA** for remote firmware updates.
@@ -62,7 +62,7 @@ Data is smoothed using a **moving average algorithm** and published to Adafruit 
 ## 🌐 Web Dashboard
 
 A live dashboard hosted on **GitHub Pages** subscribes to Adafruit IO via MQTT‑over‑WebSockets:  
-👉 [https://fritzenlab.github.io/weather-station-fritzenlab/](https://fritzenlab.github.io/weather-station-fritzenlab/)
+👉 [https://fritzenlab.github.io/weather-station-fritzenlab-v2/](https://fritzenlab.github.io/weather-station-fritzenlab-v2/)
 
 It fetches the latest values via Adafruit IO REST API and updates in real time.
 
