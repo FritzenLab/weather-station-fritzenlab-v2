@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weather Station Dashboard</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="fritzenlab-icon.png">
+  <link rel="apple-touch-icon" href="fritzenlab-icon.png">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#47a135">
+  <style>
+    body { font-family: "Segoe UI", Arial, sans-serif; margin:0; padding:0; background:#f9f9f9; color:#333; text-align:center; }
+    header { background:#47a135; color:white; padding:1rem; font-size:1.5rem; }
+    .card { background:white; margin:1rem auto; padding:1.2rem; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); max-width:400px; font-size:1.3rem; }
+    .label { font-weight:600; color:#2c3e50; }
+  </style>
+</head>
+<body>
+  <header>🌤 FritzenLab Weather Station</header>
+
+  <div class="card"><span class="label">Temperature:</span> <span id="temp">--</span> °C</div>
+  <div class="card"><span class="label">Humidity:</span> <span id="hum">--</span> %</div>
+  <div class="card"><span class="label">Light:</span> <span id="ldr">--</span> %</div>
+  <div class="card"><span class="label">ECO2:</span> <span id="eco2">--</span> ppm</div>
+
+  <script>
+    // Public feed URLs (no API key needed if feeds are public)
+    const feeds = {
+      temp: "https://io.adafruit.com/api/v2/clovisf/feeds/temperaturereadings",
+      hum: "https://io.adafruit.com/api/v2/clovisf/feeds/humidityreadings",
+      ldr: "https://io.adafruit.com/api/v2/clovisf/feeds/ldrreadings",
+      eco2: "https://io.adafruit.com/api/v2/clovisf/feeds/eco2readings"
+    };
+
+    async function fetchFeed(id, url) {
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+        document.getElementById(id).innerText = data.last_value;
+      } catch (err) {
+        console.error("Error fetching", id, err);
+      }
+    }
+
+    function updateAllFeeds() {
+      for (const [id, url] of Object.entries(feeds)) {
+        fetchFeed(id, url);
+      }
+    }
+
+    // Fetch immediately when page loads
+    updateAllFeeds();
+
+    // Refresh every 30 seconds
+    setInterval(updateAllFeeds, 60000);
+  </script>
+</body>
+</html>
+
