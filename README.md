@@ -6,7 +6,9 @@ This project is an **ESP32‑based IoT weather station** that measures temperatu
 It publishes data securely to **Adafruit IO via MQTT**, sends notifications through **Telegram** and **NTFY**, and supports **ElegantOTA** for remote firmware updates.
 
 ---
-![weather-station-fritzenlab-v2](dashboard-screenshot.png)
+<p align="center">
+  <img src="dashboard-screenshot.png" width="50%">
+</p>
 ---
 ## 🧠 Overview
 
