@@ -8,7 +8,7 @@
     body { font-family: "Segoe UI", Arial, sans-serif; margin:0; padding:0; background:#f9f9f9; color:#333; text-align:center; }
     header { background:#47a135; color:white; padding:1rem; font-size:1.5rem; text-align:center; }
     .card { background:white; margin:1rem auto; padding:1.2rem; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); max-width:400px; font-size:1.3rem; }
-    .chart-card { background:white; margin:1rem auto; padding:1.2rem; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); max-width:600px; }
+    .chart-card { background:white; margin:1rem auto; padding:1.2rem; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); max-width:800px; } /* Made wider for more data */
     .label { font-weight:600; color:#2c3e50; }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -26,7 +26,6 @@
   </div>
 
   <script>
-    // Keep these as the BASE URLs
     const feeds = {
       temp: "https://io.adafruit.com/api/v2/clovisf/feeds/temperaturereadings",
       hum: "https://io.adafruit.com/api/v2/clovisf/feeds/humidityreadings",
@@ -34,8 +33,8 @@
       eco2: "https://io.adafruit.com/api/v2/clovisf/feeds/eco2readings"
     };
 
-    // Initialize Chart with two datasets
-    const ctx = document.getElementById('tempChart').getContext('3d');
+    // FIXED: Changed '3d' to '2d'
+    const ctx = document.getElementById('tempChart').getContext('2d');
     const tempChart = new Chart(ctx, {
         type: 'line',
         data: { 
@@ -44,51 +43,51 @@
                 { 
                     label: 'Temp (°C)', 
                     data: [], 
-                    borderColor: '#47a135', // Original Green
-                    backgroundColor: 'rgba(71, 161, 53, 0.1)',
-                    fill: true,
-                    tension: 0.3 
+                    borderColor: '#47a135',
+                    yAxisID: 'y', // Left axis
+                    tension: 0.3,
+                    fill: false
                 },
                 { 
                     label: 'Humidity (%)', 
                     data: [], 
-                    borderColor: '#8ed17d', // Lighter Green
-                    backgroundColor: 'rgba(142, 209, 125, 0.1)',
-                    fill: true,
-                    tension: 0.3 
+                    borderColor: '#8ed17d',
+                    yAxisID: 'y1', // Right axis
+                    tension: 0.3,
+                    fill: false
                 },
                 { 
-                    label: 'Light level (%)', 
+                    label: 'Light (%)', 
                     data: [], 
-                    borderColor: '#92f1cd',
-                    backgroundColor: 'rgba(200, 220, 200, 0.1)',
-                    fill: true,
-                    tension: 0.3 
+                    borderColor: '#f1c40f', // Yellow for light
+                    yAxisID: 'y1', // Right axis
+                    tension: 0.3,
+                    fill: false
                 }
             ] 
         },
         options: { 
             responsive: true,
             scales: { 
-                y: { beginAtZero: false } 
+                y: { type: 'linear', display: true, position: 'left', title: {display: true, text: 'Temp °C'} },
+                y1: { type: 'linear', display: true, position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: '%'} }
             } 
         }
     });
 
     async function loadHistory() {
         try {
-            // Fetch both histories simultaneously
+            const limit = 144;
             const [tempRes, humRes, ldrRes] = await Promise.all([
-                fetch(`${feeds.temp}/data?limit=144`),
-                fetch(`${feeds.hum}/data?limit=144`),
-                fetch(`${feeds.ldr}/data?limit=144`)
+                fetch(`${feeds.temp}/data?limit=${limit}`),
+                fetch(`${feeds.hum}/data?limit=${limit}`),
+                fetch(`${feeds.ldr}/data?limit=${limit}`)
             ]);
 
             const tempData = await tempRes.json();
             const humData = await humRes.json();
             const ldrData = await ldrRes.json();
 
-            // Reverse both so they are chronological
             tempData.reverse();
             humData.reverse();
             ldrData.reverse();
@@ -97,79 +96,49 @@
                 const time = new Date(point.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 tempChart.data.labels.push(time);
                 tempChart.data.datasets[0].data.push(parseFloat(point.value));
-                
-                // Add humidity point at the same time index
-                if (humData[index]) {
-                    tempChart.data.datasets[1].data.push(parseFloat(humData[index].value));
-                }
-                if(ldrData[index]) {
-                    tempChart.data.datasets[2].data.push(parseFloat(ldrData[index].value));
-                }
+                tempChart.data.datasets[1].data.push(humData[index] ? parseFloat(humData[index].value) : null);
+                tempChart.data.datasets[2].data.push(ldrData[index] ? parseFloat(ldrData[index].value) : null);
             });
 
             tempChart.update();
-        } catch (err) {
-            console.error("History fetch failed", err);
-        }
+        } catch (err) { console.error("History fetch failed", err); }
     }
 
     async function fetchFeed(id, url) {
         try {
             const response = await fetch(url);
             const data = await response.json();
-            
-            // Update the text cards
             document.getElementById(id).innerText = data.last_value;
 
-            // Update the chart live
             const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            if (id === 'temp') {
-                // If it's a new minute/timestamp, push a new label and temp data
-                if (tempChart.data.labels[tempChart.data.labels.length - 1] !== now) {
-                    tempChart.data.labels.push(now);
-                    tempChart.data.datasets[0].data.push(parseFloat(data.last_value));
-                    
-                    if (tempChart.data.labels.length > 144) {
-                        tempChart.data.labels.shift();
-                        tempChart.data.datasets[0].data.shift();
-                    }
-                    tempChart.update();
-                }
+            if (id === 'temp' && tempChart.data.labels[tempChart.data.labels.length - 1] !== now) {
+                tempChart.data.labels.push(now);
+                tempChart.data.datasets[0].data.push(parseFloat(data.last_value));
+                if (tempChart.data.labels.length > 144) tempChart.data.labels.shift();
+                tempChart.update();
             }
-            
             if (id === 'hum') {
-                // Push humidity to the second dataset
                 tempChart.data.datasets[1].data.push(parseFloat(data.last_value));
-                if (tempChart.data.datasets[1].data.length > 144) {
-                    tempChart.data.datasets[1].data.shift();
-                }
+                if (tempChart.data.datasets[1].data.length > 144) tempChart.data.datasets[1].data.shift();
                 tempChart.update();
             }
             if (id === 'ldr') {
-                // Push humidity to the second dataset
                 tempChart.data.datasets[2].data.push(parseFloat(data.last_value));
-                if (tempChart.data.datasets[2].data.length > 144) {
-                    tempChart.data.datasets[2].data.shift();
-                }
+                if (tempChart.data.datasets[2].data.length > 144) tempChart.data.datasets[2].data.shift();
                 tempChart.update();
             }
-
-        } catch (err) { console.error("Error fetching", id, err); }
+        } catch (err) { console.error(err); }
     }
 
     function updateAllFeeds() {
-        for (const [id, url] of Object.entries(feeds)) { 
-            fetchFeed(id, url); 
-        }
+        for (const [id, url] of Object.entries(feeds)) { fetchFeed(id, url); }
     }
 
-    // STARTUP LOGIC
     loadHistory().then(() => {
         updateAllFeeds(); 
-        // 300000ms = 5 minutes, matching your MQTT frequency
         setInterval(updateAllFeeds, 300000); 
     });
-</script>
+  </script>
 </body>
 </html>
