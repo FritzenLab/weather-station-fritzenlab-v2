@@ -29,7 +29,7 @@
   <script>
     // Public feed URLs (no API key needed if feeds are public)
     const feeds = {
-      temp: "https://io.adafruit.com/api/v2/clovisf/feeds/temperaturereadings",
+      temp: "https://io.adafruit.com/api/v2/clovisf/feeds/temperaturereadings/data?limit=12",
       hum: "https://io.adafruit.com/api/v2/clovisf/feeds/humidityreadings",
       ldr: "https://io.adafruit.com/api/v2/clovisf/feeds/ldrreadings",
       eco2: "https://io.adafruit.com/api/v2/clovisf/feeds/eco2readings"
@@ -57,55 +57,67 @@
     // Refresh every 30 seconds
     setInterval(updateAllFeeds, 60000);
 	
-		// 1. Initialize the Chart
+		// Initialize Chart
 	const ctx = document.getElementById('tempChart').getContext('2d');
 	const tempChart = new Chart(ctx, {
 		type: 'line',
-		data: {
-			labels: [], // Time labels
-			datasets: [{
-				label: 'Temperature (°C)',
-				data: [], // Temperature values
-				borderColor: '#47a135',
-				tension: 0.3,
-				fill: false
-			}]
-		},
-		options: {
-			scales: {
-				x: { display: true },
-				y: { beginAtZero: false }
-			}
-		}
+		data: { labels: [], datasets: [{ label: 'Temp (°C)', data: [], borderColor: '#47a135', tension: 0.3 }] },
+		options: { scales: { y: { beginAtZero: false } } }
 	});
 
-	// 2. Modify your fetchFeed function to update the chart
-	async function fetchFeed(id, url) {
-	  try {
-		const response = await fetch(url);
-		const data = await response.json();
-		document.getElementById(id).innerText = data.last_value;
+	// NEW: Function to load the last 60 mins of history
+	async function loadHistory() {
+		try {
+			// Fetch last 12 points (60 mins / 5 min intervals)
+			const response = await fetch(`${feeds.temp}/data?limit=12`);
+			const history = await response.json();
 
-		// If this is the temperature feed, update the chart
-		if (id === 'temp') {
-			const now = new Date().toLocaleTimeString();
-			const val = parseFloat(data.last_value);
-			
-			// Add new data
-			tempChart.data.labels.push(now);
-			tempChart.data.datasets[0].data.push(val);
-
-			// Keep only the last 10-15 data points so the chart doesn't get cluttered
-			if (tempChart.data.labels.length > 15) {
-				tempChart.data.labels.shift();
-				tempChart.data.datasets[0].data.shift();
-			}
+			// Adafruit returns newest first, so we reverse it for the chart
+			history.reverse().forEach(point => {
+				const time = new Date(point.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+				tempChart.data.labels.push(time);
+				tempChart.data.datasets[0].data.push(parseFloat(point.value));
+			});
 
 			tempChart.update();
+		} catch (err) {
+			console.error("History fetch failed", err);
 		}
-	  } catch (err) {
-		console.error("Error fetching", id, err);
-	  }
+	}
+
+	async function fetchFeed(id, url) {
+		try {
+			const response = await fetch(url);
+			const data = await response.json();
+			document.getElementById(id).innerText = data.last_value;
+
+			// Only push new live points if the chart already has data
+			if (id === 'temp' && tempChart.data.labels.length > 0) {
+				const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+				// Prevent duplicate points if the fetch hits before the ESP32 sends new data
+				if (tempChart.data.labels[tempChart.data.labels.length - 1] !== now) {
+					tempChart.data.labels.push(now);
+					tempChart.data.datasets[0].data.push(parseFloat(data.last_value));
+					if (tempChart.data.labels.length > 12) {
+						tempChart.data.labels.shift();
+						tempChart.data.datasets[0].data.shift();
+					}
+					tempChart.update();
+				}
+			}
+		} catch (err) { console.error(err); }
+	}
+
+	function updateAllFeeds() {
+		for (const [id, url] of Object.entries(feeds)) { fetchFeed(id, url); }
+	}
+
+	// ON STARTUP:
+	loadHistory().then(() => {
+		updateAllFeeds(); // Get current values for the text cards
+		setInterval(updateAllFeeds, 60000); // Set refresh interval
+	});
+		
 	}
   </script>
 </body>
