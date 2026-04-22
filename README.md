@@ -1,12 +1,13 @@
 # 🌤 FritzenLab Weather Station
 
-**Repository:** [https://github.com/FritzenLab/weather-station-fritzenlab](https://github.com/FritzenLab/weather-station-fritzenlab-v2)
+**Repository:** [https://github.com/FritzenLab/weather-station-fritzenlab-v2](https://github.com/FritzenLab/weather-station-fritzenlab-v2)
 
 This project is an **ESP32‑based IoT weather station** that measures temperature, humidity, light intensity, and air quality (ECO₂, TVOC, AQI).  
 It publishes data securely to **Adafruit IO via MQTT**, sends notifications through **Telegram** and **NTFY**, and supports **ElegantOTA** for remote firmware updates.
 
 ---
-
+![weather-station-fritzenlab-v2](dashboard-screenshot.png)
+---
 ## 🧠 Overview
 
 The station continuously collects environmental data using:
