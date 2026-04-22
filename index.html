@@ -34,38 +34,65 @@
       eco2: "https://io.adafruit.com/api/v2/clovisf/feeds/eco2readings"
     };
 
-    // Initialize Chart
+    // Initialize Chart with two datasets
     const ctx = document.getElementById('tempChart').getContext('2d');
     const tempChart = new Chart(ctx, {
         type: 'line',
         data: { 
             labels: [], 
-            datasets: [{ 
-                label: 'Temp (°C)', 
-                data: [], 
-                borderColor: '#47a135', 
-                backgroundColor: 'rgba(71, 161, 53, 0.1)',
-                fill: true,
-                tension: 0.3 
-            }] 
+            datasets: [
+                { 
+                    label: 'Temp (°C)', 
+                    data: [], 
+                    borderColor: '#47a135', // Original Green
+                    backgroundColor: 'rgba(71, 161, 53, 0.1)',
+                    fill: true,
+                    tension: 0.3 
+                },
+                { 
+                    label: 'Humidity (%)', 
+                    data: [], 
+                    borderColor: '#8ed17d', // Lighter Green
+                    backgroundColor: 'rgba(142, 209, 125, 0.1)',
+                    fill: true,
+                    tension: 0.3 
+                }
+            ] 
         },
         options: { 
             responsive: true,
-            scales: { y: { beginAtZero: false } } 
+            scales: { 
+                y: { beginAtZero: false } 
+            } 
         }
     });
 
     async function loadHistory() {
         try {
-            // We fetch from the base temp URL + /data?limit=12
-            const response = await fetch(`${feeds.temp}/data?limit=12`);
-            const history = await response.json();
+            // Fetch both histories simultaneously
+            const [tempRes, humRes] = await Promise.all([
+                fetch(`${feeds.temp}/data?limit=12`),
+                fetch(`${feeds.hum}/data?limit=12`)
+            ]);
 
-            history.reverse().forEach(point => {
+            const tempData = await tempRes.json();
+            const humData = await humRes.json();
+
+            // Reverse both so they are chronological
+            tempData.reverse();
+            humData.reverse();
+
+            tempData.forEach((point, index) => {
                 const time = new Date(point.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 tempChart.data.labels.push(time);
                 tempChart.data.datasets[0].data.push(parseFloat(point.value));
+                
+                // Add humidity point at the same time index
+                if (humData[index]) {
+                    tempChart.data.datasets[1].data.push(parseFloat(humData[index].value));
+                }
             });
+
             tempChart.update();
         } catch (err) {
             console.error("History fetch failed", err);
@@ -77,13 +104,14 @@
             const response = await fetch(url);
             const data = await response.json();
             
-            // Update the text card
+            // Update the text cards
             document.getElementById(id).innerText = data.last_value;
 
-            // If it's temp, add the latest point to the chart
+            // Update the chart live
+            const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
             if (id === 'temp') {
-                const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                // Only add if the timestamp is new
+                // If it's a new minute/timestamp, push a new label and temp data
                 if (tempChart.data.labels[tempChart.data.labels.length - 1] !== now) {
                     tempChart.data.labels.push(now);
                     tempChart.data.datasets[0].data.push(parseFloat(data.last_value));
@@ -95,6 +123,16 @@
                     tempChart.update();
                 }
             }
+            
+            if (id === 'hum') {
+                // Push humidity to the second dataset
+                tempChart.data.datasets[1].data.push(parseFloat(data.last_value));
+                if (tempChart.data.datasets[1].data.length > 12) {
+                    tempChart.data.datasets[1].data.shift();
+                }
+                tempChart.update();
+            }
+
         } catch (err) { console.error("Error fetching", id, err); }
     }
 
@@ -107,8 +145,9 @@
     // STARTUP LOGIC
     loadHistory().then(() => {
         updateAllFeeds(); 
+        // 300000ms = 5 minutes, matching your MQTT frequency
         setInterval(updateAllFeeds, 300000); 
     });
-  </script>
+</script>
 </body>
 </html>
