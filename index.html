@@ -56,6 +56,14 @@
                     backgroundColor: 'rgba(142, 209, 125, 0.1)',
                     fill: true,
                     tension: 0.3 
+                },
+                { 
+                    label: 'Light level (%)', 
+                    data: [], 
+                    borderColor: '#92f1cd',
+                    backgroundColor: 'rgba(200, 220, 200, 0.1)',
+                    fill: true,
+                    tension: 0.3 
                 }
             ] 
         },
@@ -70,17 +78,20 @@
     async function loadHistory() {
         try {
             // Fetch both histories simultaneously
-            const [tempRes, humRes] = await Promise.all([
-                fetch(`${feeds.temp}/data?limit=12`),
-                fetch(`${feeds.hum}/data?limit=12`)
+            const [tempRes, humRes, ldrRes] = await Promise.all([
+                fetch(`${feeds.temp}/data?limit=144`),
+                fetch(`${feeds.hum}/data?limit=144`),
+                fetch(`${feeds.ldr}/data?limit=144`)
             ]);
 
             const tempData = await tempRes.json();
             const humData = await humRes.json();
+            const ldrData = await ldrRes.json();
 
             // Reverse both so they are chronological
             tempData.reverse();
             humData.reverse();
+            ldrData.reverse();
 
             tempData.forEach((point, index) => {
                 const time = new Date(point.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -90,6 +101,9 @@
                 // Add humidity point at the same time index
                 if (humData[index]) {
                     tempChart.data.datasets[1].data.push(parseFloat(humData[index].value));
+                }
+                if(ldrData[index]) {
+                    tempChart.data.datasets[2].data.push(parseFloat(ldrData[index].value));
                 }
             });
 
@@ -116,7 +130,7 @@
                     tempChart.data.labels.push(now);
                     tempChart.data.datasets[0].data.push(parseFloat(data.last_value));
                     
-                    if (tempChart.data.labels.length > 12) {
+                    if (tempChart.data.labels.length > 144) {
                         tempChart.data.labels.shift();
                         tempChart.data.datasets[0].data.shift();
                     }
@@ -127,8 +141,16 @@
             if (id === 'hum') {
                 // Push humidity to the second dataset
                 tempChart.data.datasets[1].data.push(parseFloat(data.last_value));
-                if (tempChart.data.datasets[1].data.length > 12) {
+                if (tempChart.data.datasets[1].data.length > 144) {
                     tempChart.data.datasets[1].data.shift();
+                }
+                tempChart.update();
+            }
+            if (id === 'ldr') {
+                // Push humidity to the second dataset
+                tempChart.data.datasets[2].data.push(parseFloat(data.last_value));
+                if (tempChart.data.datasets[2].data.length > 144) {
+                    tempChart.data.datasets[2].data.shift();
                 }
                 tempChart.update();
             }
