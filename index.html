@@ -23,7 +23,7 @@
 <div class="card"><span class="label">Temperature:</span> <span id="temp">--</span> °C</div>
 <div class="card"><span class="label">Humidity:</span> <span id="hum">--</span> %</div>
 <div class="card"><span class="label">Light:</span> <span id="ldr">--</span> %</div>
-<div class="card"><span class="label">ECO2:</span> <span id="eco2">--</span> ppm</div>
+<div class="card"><span class="label">TVOC:</span> <span id="tvoc">--</span> index</div>
 
 <div class="chart-card">
   <canvas id="tempChart"></canvas>
@@ -34,7 +34,7 @@ const feeds = {
   temp: "https://io.adafruit.com/api/v2/clovisf/feeds/temperaturereadings",
   hum: "https://io.adafruit.com/api/v2/clovisf/feeds/humidityreadings",
   ldr: "https://io.adafruit.com/api/v2/clovisf/feeds/ldrreadings",
-  eco2: "https://io.adafruit.com/api/v2/clovisf/feeds/eco2readings"
+  eco2: "https://io.adafruit.com/api/v2/clovisf/feeds/tvocreadings"
 };
 
 const ctx = document.getElementById('tempChart').getContext('2d');
@@ -47,7 +47,7 @@ const tempChart = new Chart(ctx, {
       { label: 'Temp (°C)', data: [], borderColor: '#47a135', yAxisID: 'y', tension: 0.3 },
       { label: 'Humidity (%)', data: [], borderColor: '#00A2E8', yAxisID: 'y1', tension: 0.3 },
       { label: 'Light (%)', data: [], borderColor: '#f1c40f', yAxisID: 'y1', tension: 0.3 },
-      { label: 'eCO2 (ppm)', data: [], borderColor: '#e74c3c', yAxisID: 'y2', tension: 0.3 }
+      { label: 'TVOC Index', data: [], borderColor: '#e74c3c', yAxisID: 'y2', tension: 0.3 }
     ]
   },
   options: {
@@ -55,7 +55,7 @@ const tempChart = new Chart(ctx, {
     scales: {
       y:  { type: 'linear', position: 'left',  title: { display: true, text: 'Temp °C' }},
       y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '%' }},
-      y2: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'ppm' }}
+      y2: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'index' }}
     }
   }
 });
@@ -64,22 +64,22 @@ async function loadHistory() {
   try {
     const limit = 144;
 
-    const [tempRes, humRes, ldrRes, eco2Res] = await Promise.all([
+    const [tempRes, humRes, ldrRes, tvocRes] = await Promise.all([
       fetch(`${feeds.temp}/data?limit=${limit}`),
       fetch(`${feeds.hum}/data?limit=${limit}`),
       fetch(`${feeds.ldr}/data?limit=${limit}`),
-      fetch(`${feeds.eco2}/data?limit=${limit}`)
+      fetch(`${feeds.tvoc}/data?limit=${limit}`)
     ]);
 
     const tempData = await tempRes.json();
     const humData  = await humRes.json();
     const ldrData  = await ldrRes.json();
-    const eco2Data = await eco2Res.json();
+    const tvocData = await tvocRes.json();
 
     tempData.reverse();
     humData.reverse();
     ldrData.reverse();
-    eco2Data.reverse();
+    tvocData.reverse();
 
     tempData.forEach((point, i) => {
       const time = new Date(point.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -88,7 +88,7 @@ async function loadHistory() {
       tempChart.data.datasets[0].data.push(parseFloat(point.value));
       tempChart.data.datasets[1].data.push(humData[i]  ? parseFloat(humData[i].value)  : null);
       tempChart.data.datasets[2].data.push(ldrData[i]  ? parseFloat(ldrData[i].value)  : null);
-      tempChart.data.datasets[3].data.push(eco2Data[i] ? parseFloat(eco2Data[i].value) : null);
+      tempChart.data.datasets[3].data.push(tvocData[i] ? parseFloat(tvocData[i].value) : null);
     });
 
     tempChart.update();
@@ -105,7 +105,7 @@ async function fetchFeed(id, url) {
 
     document.getElementById(id).innerText = data.last_value;
 
-    if (id === 'eco2') {
+    if (id === 'tvoc') {
       tempChart.data.datasets[3].data.push(parseFloat(data.last_value));
       if (tempChart.data.datasets[3].data.length > 144) tempChart.data.datasets[3].data.shift();
       tempChart.update();
