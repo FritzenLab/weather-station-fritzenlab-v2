@@ -63,7 +63,15 @@
                     yAxisID: 'y1', // Right axis
                     tension: 0.3,
                     fill: false
-                }
+                },
+		{
+    	            label: 'eCO2 (ppm)',
+    		    data: [],
+    		    borderColor: '#e74c3c', // red
+    		    yAxisID: 'y2', // new axis
+    		    tension: 0.3,
+    		    fill: false
+		}
             ] 
         },
         options: { 
@@ -71,6 +79,8 @@
             scales: { 
                 y: { type: 'linear', display: true, position: 'left', title: {display: true, text: 'Temp °C'} },
                 y1: { type: 'linear', display: true, position: 'right', grid: {drawOnChartArea: false}, title: {display: true, text: '%'} }
+		y2: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'ppm' }
+		    }
             } 
         }
     });
@@ -81,23 +91,27 @@
             const [tempRes, humRes, ldrRes] = await Promise.all([
                 fetch(`${feeds.temp}/data?limit=${limit}`),
                 fetch(`${feeds.hum}/data?limit=${limit}`),
-                fetch(`${feeds.ldr}/data?limit=${limit}`)
+                fetch(`${feeds.ldr}/data?limit=${limit}`),
+		fetch(`${feeds.eco2}/data?limit=${limit}`)
             ]);
 
             const tempData = await tempRes.json();
             const humData = await humRes.json();
             const ldrData = await ldrRes.json();
+	    const eco2Data = await eco2Res.json();
 
             tempData.reverse();
             humData.reverse();
             ldrData.reverse();
-
+	    eco2Data.reverse();
+		
             tempData.forEach((point, index) => {
                 const time = new Date(point.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 tempChart.data.labels.push(time);
                 tempChart.data.datasets[0].data.push(parseFloat(point.value));
                 tempChart.data.datasets[1].data.push(humData[index] ? parseFloat(humData[index].value) : null);
                 tempChart.data.datasets[2].data.push(ldrData[index] ? parseFloat(ldrData[index].value) : null);
+		tempChart.data.datasets[3].data.push(eco2Data[index] ? parseFloat(eco2Data[index].value) : null);
             });
 
             tempChart.update();
@@ -128,6 +142,11 @@
                 if (tempChart.data.datasets[2].data.length > 144) tempChart.data.datasets[2].data.shift();
                 tempChart.update();
             }
+	    if (id === 'eco2') {
+    		tempChart.data.datasets[3].data.push(parseFloat(data.last_value));
+    		if (tempChart.data.datasets[3].data.length > 144) tempChart.data.datasets[3].data.shift();
+    		tempChart.update();
+	    }
         } catch (err) { console.error(err); }
     }
 
